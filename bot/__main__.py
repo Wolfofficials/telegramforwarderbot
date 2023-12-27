@@ -14,26 +14,30 @@ logging.info("Bot Started")
 
 
 @app.on_message(filters.chat(monitored_chats) & filters.incoming)
-def work(_:Client, message:Message):
+def work(_: Client, message: Message):
     caption = None
     msg = None
     chat = chats_map.get(message.chat.id)
-    if chat.get("replace"):
+
+    if chat and chat.get("replace"):
         for old, new in chat["replace"].items():
             if message.media and not message.poll:
-                caption = message.caption.markdown.replace(old, new)
+                if message.caption:
+                    caption = (caption or message.caption.markdown).replace(old, new)
             elif message.text:
-                msg = message.text.markdown.replace(old, new)
+                msg = (msg or message.text.markdown).replace(old, new)
+
     try:
-        for chat in chat["to"]:
+        for destination_chat in chat["to"]:
             if caption:
-                message.copy(chat, caption=caption, parse_mode=ParseMode.MARKDOWN)
+                message.copy(destination_chat, caption=caption, parse_mode=ParseMode.MARKDOWN)
             elif msg:
-                app.send_message(chat, msg, parse_mode=ParseMode.MARKDOWN)
+                app.send_message(destination_chat, msg, parse_mode=ParseMode.MARKDOWN)
             else:
-                message.copy(chat)
+                message.copy(destination_chat)
     except Exception as e:
-        logging.error(f"Error while sending message from {message.chat.id} to {chat}: {e}")
+        logging.error(f"Error while sending message from {message.chat.id} to {destination_chat}: {e}")
+
 
 
 @app.on_message(filters.user(sudo_users) & filters.command(["fwd", "forward"]), group=1)
